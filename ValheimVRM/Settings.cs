@@ -52,7 +52,8 @@ namespace ValheimVRM
                     bool parseSuccessful = false;
                     try
                     {
-                        if (str.Length > 1 && str.Substring(0, 1) == "//") continue; // Skip contents
+                        if (str.Length < 1) continue;
+                        if (str.Length > 1 && str.Substring(0, 2) == "//") continue; // Skip contents
                         string[] args = str.Split('=');
                         if (args.Length != 2)
                         {
