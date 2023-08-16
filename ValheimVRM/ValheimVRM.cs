@@ -1,9 +1,7 @@
 ﻿using HarmonyLib;
 using System;
-using System.CodeDom;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using UniGLTF;
 using UnityEngine;
@@ -11,434 +9,463 @@ using VRM;
 
 namespace ValheimVRM
 {
-	[HarmonyPatch(typeof(Shader))]
-	[HarmonyPatch(nameof(Shader.Find))]
-	static class ShaderPatch
-	{
-		static bool Prefix(ref Shader __result, string name)
-		{
-			if (VRMShaders.Shaders.TryGetValue(name, out var shader))
-			{
-				__result = shader;
-				return false;
-			}
+    [HarmonyPatch(typeof(Shader))]
+    [HarmonyPatch(nameof(Shader.Find))]
+    static class ShaderPatch
+    {
+        static bool Prefix(ref Shader __result, string name)
+        {
+            if (VRMShaders.Shaders.TryGetValue(name, out var shader))
+            {
+                __result = shader;
+                return false;
+            }
 
-			return true;
-		}
-	}
+            return true;
+        }
+    }
 
-	public static class VRMShaders
-	{
-		public static Dictionary<string, Shader> Shaders { get; } = new Dictionary<string, Shader>();
+    public static class VRMShaders
+    {
+        public static Dictionary<string, Shader> Shaders { get; } = new Dictionary<string, Shader>();
 
-		public static void Initialize()
-		{
-			var bundlePath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), @"ValheimVRM.shaders");
-			if (File.Exists(bundlePath))
-			{
+        public static void Initialize()
+        {
+            var bundlePath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), @"ValheimVRM.shaders");
+            if (File.Exists(bundlePath))
+            {
                 AssetBundle assetBundle = AssetBundle.LoadFromFile(bundlePath);
                 Shader[] assets = assetBundle.LoadAllAssets<Shader>();
-				foreach (Shader asset in assets)
-				{
-					UnityEngine.Debug.Log("[ValheimVRM] Add Shader: " + asset.name);
-					Shaders.Add(asset.name, asset);
-				}
-			}
-		}
-	}
+                foreach (Shader asset in assets)
+                {
+                    UnityEngine.Debug.Log("[ValheimVRM] Add Shader: " + asset.name);
+                    Shaders.Add(asset.name, asset);
+                }
+            }
+        }
+    }
 
-	public static class VRMModels
-	{
-		public static Dictionary<string, byte[]> VrmBufDic = new Dictionary<string, byte[]>();
-		public static Dictionary<Player, GameObject> PlayerToVrmDic = new Dictionary<Player, GameObject>();
-		public static Dictionary<Player, string> PlayerToNameDic = new Dictionary<Player, string>();
-	}
+    public static class VRMModels
+    {
+        public static Dictionary<string, byte[]> VrmBufDic = new Dictionary<string, byte[]>();
+        public static Dictionary<Player, GameObject> PlayerToVrmDic = new Dictionary<Player, GameObject>();
+        public static Dictionary<Player, string> PlayerToNameDic = new Dictionary<Player, string>();
+    }
 
-	[HarmonyPatch(typeof(VisEquipment), "UpdateLodgroup")]
-	static class Patch_VisEquipment_UpdateLodgroup
-	{
-		[HarmonyPostfix]
-		static void Postfix(VisEquipment __instance)
-		{
-			if (!__instance.m_isPlayer) return;
-			Player player = __instance.GetComponent<Player>();
-			if (player == null || !VRMModels.PlayerToVrmDic.ContainsKey(player)) return;
+    [HarmonyPatch(typeof(VisEquipment), "UpdateLodgroup")]
+    static class Patch_VisEquipment_UpdateLodgroup
+    {
+        static void DeactivateVisibilityEquipment(VisEquipment __instance, Player player)
+        {
+            if (!__instance.m_isPlayer) return;
 
-			GameObject hair = __instance.GetField<VisEquipment, GameObject>("m_hairItemInstance");
-			if (hair != null) SetVisible(hair, false);
+            GameObject hair = __instance.GetField<VisEquipment, GameObject>("m_hairItemInstance");
+            if (hair != null) SetVisible(hair, false);
 
-			GameObject beard = __instance.GetField<VisEquipment, GameObject>("m_beardItemInstance");
-			if (beard != null) SetVisible(beard, false);
+            GameObject beard = __instance.GetField<VisEquipment, GameObject>("m_beardItemInstance");
+            if (beard != null) SetVisible(beard, false);
 
-			List<GameObject> chestList = __instance.GetField<VisEquipment, List<GameObject>>("m_chestItemInstances");
-			if (chestList != null) foreach (var chest in chestList) SetVisible(chest, false);
+            List<GameObject> chestList = __instance.GetField<VisEquipment, List<GameObject>>("m_chestItemInstances");
+            if (chestList != null) foreach (var chest in chestList) SetVisible(chest, false);
 
             List<GameObject> legList = __instance.GetField<VisEquipment, List<GameObject>>("m_legItemInstances");
-			if (legList != null) foreach (var leg in legList) SetVisible(leg, false);
+            if (legList != null) foreach (var leg in legList) SetVisible(leg, false);
 
             List<GameObject> shoulderList = __instance.GetField<VisEquipment, List<GameObject>>("m_shoulderItemInstances");
-			if (shoulderList != null) foreach (var shoulder in shoulderList) SetVisible(shoulder, false);
+            if (shoulderList != null) foreach (var shoulder in shoulderList) SetVisible(shoulder, false);
 
             List<GameObject> utilityList = __instance.GetField<VisEquipment, List<GameObject>>("m_utilityItemInstances");
-			if (utilityList != null) foreach (var utility in utilityList) SetVisible(utility, false);
+            if (utilityList != null) foreach (var utility in utilityList) SetVisible(utility, false);
 
             GameObject helmet = __instance.GetField<VisEquipment, GameObject>("m_helmetItemInstance");
-			if (helmet != null) SetVisible(helmet, false);
+            if (helmet != null) SetVisible(helmet, false);
+        }
+        [HarmonyPostfix]
+        static void Postfix(VisEquipment __instance)
+        {
+            Player player = __instance.GetComponent<Player>();
+            if (player == null || !VRMModels.PlayerToVrmDic.ContainsKey(player)) return;
 
-			// 武器位置合わせ
-			string name = VRMModels.PlayerToNameDic[player];
+            DeactivateVisibilityEquipment(__instance, player);
 
-			GameObject leftItem = __instance.GetField<VisEquipment, GameObject>("m_leftItemInstance");
-			if (leftItem != null) leftItem.transform.localPosition = Settings.GetSettings(name).leftHandEquipPos;
+            // 武器位置合わせ
+            string name = VRMModels.PlayerToNameDic[player];
+
+            GameObject leftItem = __instance.GetField<VisEquipment, GameObject>("m_leftItemInstance");
+            if (leftItem != null) leftItem.transform.localPosition = Settings.GetSettings(name).leftHandEquipPos;
 
             GameObject rightItem = __instance.GetField<VisEquipment, GameObject>("m_rightItemInstance");
-			if (rightItem != null) rightItem.transform.localPosition = Settings.GetSettings(name).rightHandEquipPos;
+            if (rightItem != null) rightItem.transform.localPosition = Settings.GetSettings(name).rightHandEquipPos;
 
             // divided  by 100 to keep the settings file positions in the same number range. (position offset appears to be on the world, not local)
             GameObject rightBackItem = __instance.GetField<VisEquipment, GameObject>("m_rightBackItemInstance");
-			if (rightBackItem != null) rightBackItem.transform.localPosition = Settings.GetSettings(name).rightHandBackItemPos / 100.0f;
+            if (rightBackItem != null) rightBackItem.transform.localPosition = Settings.GetSettings(name).rightHandBackItemPos / 100.0f;
 
             GameObject leftBackItem = __instance.GetField<VisEquipment, GameObject>("m_leftBackItemInstance");
-			if (leftBackItem != null) leftBackItem.transform.localPosition = Settings.GetSettings(name).leftHandBackItemPos / 100.0f;
-		}
+            if (leftBackItem != null) leftBackItem.transform.localPosition = Settings.GetSettings(name).leftHandBackItemPos / 100.0f;
+        }
 
-		private static void SetVisible(GameObject obj, bool flag)
-		{
-			foreach (MeshRenderer mr in obj.GetComponentsInChildren<MeshRenderer>()) mr.enabled = flag;
-			foreach (SkinnedMeshRenderer smr in obj.GetComponentsInChildren<SkinnedMeshRenderer>()) smr.enabled = flag;
-		}
-	}
+        private static void SetVisible(GameObject obj, bool flag)
+        {
+            foreach (MeshRenderer mr in obj.GetComponentsInChildren<MeshRenderer>()) mr.enabled = flag;
+            foreach (SkinnedMeshRenderer smr in obj.GetComponentsInChildren<SkinnedMeshRenderer>()) smr.enabled = flag;
+        }
+    }
 
-	[HarmonyPatch(typeof(Humanoid), "OnRagdollCreated")]
-	static class Patch_Humanoid_OnRagdollCreated
-	{
-		[HarmonyPostfix]
-		static void Postfix(Humanoid __instance, Ragdoll ragdoll)
-		{
-			if (!__instance.IsPlayer()) return;
+    [HarmonyPatch(typeof(Humanoid), "OnRagdollCreated")]
+    static class Patch_Humanoid_OnRagdollCreated
+    {
+        [HarmonyPostfix]
+        static void Postfix(Humanoid __instance, Ragdoll ragdoll)
+        {
+            if (!__instance.IsPlayer()) return;
 
-			foreach (SkinnedMeshRenderer smr in ragdoll.GetComponentsInChildren<SkinnedMeshRenderer>())
-			{
-				smr.forceRenderingOff = true;
-				smr.updateWhenOffscreen = true;
-			}
-			
+            foreach (SkinnedMeshRenderer smr in ragdoll.GetComponentsInChildren<SkinnedMeshRenderer>())
+            {
+                smr.forceRenderingOff = true;
+                smr.updateWhenOffscreen = true;
+            }
 
-			Animator ragAnim = ragdoll.gameObject.AddComponent<Animator>();
-			ragAnim.keepAnimatorStateOnDisable = true;
-			ragAnim.cullingMode = AnimatorCullingMode.AlwaysAnimate;
 
-			Animator orgAnim = ((Player)__instance).GetField<Player, Animator>("m_animator");
-			ragAnim.avatar = orgAnim.avatar;
+            Animator ragAnim = ragdoll.gameObject.AddComponent<Animator>();
+            ragAnim.keepAnimatorStateOnDisable = true;
+            ragAnim.cullingMode = AnimatorCullingMode.AlwaysAnimate;
 
-			if (VRMModels.PlayerToVrmDic.TryGetValue((Player)__instance, out GameObject vrm))
-			{
-				vrm.transform.SetParent(ragdoll.transform);
-				vrm.GetComponent<VRMAnimationSync>().Setup(ragAnim, true);
-			}
-		}
-	}
+            Animator orgAnim = ((Player)__instance).GetField<Player, Animator>("m_animator");
+            ragAnim.avatar = orgAnim.avatar;
 
-	[HarmonyPatch(typeof(Character), "SetVisible")]
-	static class Patch_Character_SetVisible
-	{
-		[HarmonyPostfix]
-		static void Postfix(Character __instance, bool visible)
-		{
-			if (!__instance.IsPlayer()) return;
+            if (VRMModels.PlayerToVrmDic.TryGetValue((Player)__instance, out GameObject vrm))
+            {
+                vrm.transform.SetParent(ragdoll.transform);
+                vrm.GetComponent<VRMAnimationSync>().Setup(ragAnim, true);
+            }
+        }
+    }
 
-			if (VRMModels.PlayerToVrmDic.TryGetValue((Player)__instance, out GameObject vrm))
-			{
-				LODGroup lodGroup = vrm.GetComponent<LODGroup>();
-				if (visible)
-				{
-					lodGroup.localReferencePoint = __instance.GetField<Character, Vector3>("m_originalLocalRef");
-				}
-				else
-				{
-					lodGroup.localReferencePoint = new Vector3(999999f, 999999f, 999999f);
-				}
-			}
-		}
-	}
+    [HarmonyPatch(typeof(Character), "SetVisible")]
+    static class Patch_Character_SetVisible
+    {
+        [HarmonyPostfix]
+        static void Postfix(Character __instance, bool visible)
+        {
+            if (!__instance.IsPlayer()) return;
 
-	[HarmonyPatch(typeof(Player), "OnDeath")]
-	static class Patch_Player_OnDeath
-	{
-		[HarmonyPostfix]
-		static void Postfix(Player __instance)
-		{
-			string name = null;
-			if (VRMModels.PlayerToNameDic.ContainsKey(__instance)) name = VRMModels.PlayerToNameDic[__instance];
-			if (name != null && Settings.GetSettings(name).fixCameraHeight)
-			{
-				GameObject.Destroy(__instance.GetComponent<VRMEyePositionSync>());
-			}
-		}
-	}
+            if (VRMModels.PlayerToVrmDic.TryGetValue((Player)__instance, out GameObject vrm))
+            {
+                LODGroup lodGroup = vrm.GetComponent<LODGroup>();
+                if (visible)
+                {
+                    lodGroup.localReferencePoint = __instance.GetField<Character, Vector3>("m_originalLocalRef");
+                }
+                else
+                {
+                    lodGroup.localReferencePoint = new Vector3(999999f, 999999f, 999999f);
+                }
+            }
+        }
+    }
 
-	[HarmonyPatch(typeof(Character), "GetHeadPoint")]
-	static class Patch_Character_GetHeadPoint
-	{
-		[HarmonyPostfix]
-		static bool Prefix(Character __instance, ref Vector3 __result)
-		{
-			Player player = __instance as Player;
-			if (player == null) return true;
+    [HarmonyPatch(typeof(Player), "OnDeath")]
+    static class Patch_Player_OnDeath
+    {
+        [HarmonyPostfix]
+        static void Postfix(Player __instance)
+        {
+            string name = null;
+            if (VRMModels.PlayerToNameDic.ContainsKey(__instance)) name = VRMModels.PlayerToNameDic[__instance];
+            if (name != null && Settings.GetSettings(name).fixCameraHeight)
+            {
+                GameObject.Destroy(__instance.GetComponent<VRMEyePositionSync>());
+            }
+        }
+    }
 
-			if (VRMModels.PlayerToVrmDic.TryGetValue(player, out GameObject vrm))
-			{
-				Animator animator = vrm.GetComponentInChildren<Animator>();
-				if (animator == null) return true;
+    [HarmonyPatch(typeof(Character), "GetHeadPoint")]
+    static class Patch_Character_GetHeadPoint
+    {
+        [HarmonyPostfix]
+        static bool Prefix(Character __instance, ref Vector3 __result)
+        {
+            Player player = __instance as Player;
+            if (player == null) return true;
 
-				Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
-				if (head == null) return true;
+            if (VRMModels.PlayerToVrmDic.TryGetValue(player, out GameObject vrm))
+            {
+                Animator animator = vrm.GetComponentInChildren<Animator>();
+                if (animator == null) return true;
 
-				__result = head.position;
-				return false;
-			}
-			
-			return true;
-		}
-	}
+                Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
+                if (head == null) return true;
 
-	[HarmonyPatch(typeof(Player), "Awake")]
-	static class Patch_Player_Awake
-	{
-		private static Dictionary<string, GameObject> vrmDic = new Dictionary<string, GameObject>();
+                __result = head.position;
+                return false;
+            }
 
-		[HarmonyPostfix]
-		static void Postfix(Player __instance)
-		{
-			string playerName = null;
-			if (Game.instance != null)
-			{
-				playerName = __instance.GetPlayerName();
-				if (playerName == "" || playerName == "...") playerName = Game.instance.GetPlayerProfile().GetName();
-			}
-			else
-			{
-				int index = FejdStartup.instance.GetField<FejdStartup, int>("m_profileIndex");
-				List<PlayerProfile> profiles = FejdStartup.instance.GetField<FejdStartup, List<PlayerProfile>>("m_profiles");
-				if (index >= 0 && index < profiles.Count) playerName = profiles[index].GetName();
-			}
+            return true;
+        }
+    }
 
-			if (!string.IsNullOrEmpty(playerName) && !vrmDic.ContainsKey(playerName))
-			{
-				string path = Path.Combine(Environment.CurrentDirectory, "ValheimVRM", $"{playerName}.vrm");
+    [HarmonyPatch(typeof(Player), "Awake")]
+    static class Patch_Player_Awake
+    {
+        private static Dictionary<string, GameObject> vrmDic = new Dictionary<string, GameObject>();
 
-				ref ZNetView m_nview = ref AccessTools.FieldRefAccess<Player, ZNetView>("m_nview").Invoke(__instance);
-				if (!File.Exists(path))
-				{
-					Debug.LogErrorFormat("[ValheimVRM] VRM model for player {0} not found.", playerName);
-					Debug.LogErrorFormat("[ValheimVRM] VRM file path: {0}", path);
-				}
-				else
-				{
-					PlayerSettings settings = Settings.GetSettings(playerName);
-					if (settings == null)
-					{
-						if (!Settings.AddSettingsFromFile(playerName))
-						{
-							Debug.LogWarningFormat("[ValheimVRM] Settings file for {0} not found. Please check that the following file exists {1}",
-								playerName, Settings.PlayerSettingsPath(playerName));
-						}
-					}
+        static string GetPlayerName(Player __instance)
+        {
+            string playerName = null;
+            if (Game.instance != null)
+            {
+                playerName = __instance.GetPlayerName();
+                if (playerName == "" || playerName == "...") playerName = Game.instance.GetPlayerProfile().GetName();
+            }
+            else
+            {
+                int index = FejdStartup.instance.GetField<FejdStartup, int>("m_profileIndex");
+                List<PlayerProfile> profiles = FejdStartup.instance.GetField<FejdStartup, List<PlayerProfile>>("m_profiles");
+                if (index >= 0 && index < profiles.Count) playerName = profiles[index].GetName();
+            }
+            return playerName;
+        }
 
-					float scale = settings.modelScale;
-					GameObject orgVrm =  ImportVRM(path, scale);
-					if (orgVrm != null)
-					{
-						GameObject.DontDestroyOnLoad(orgVrm);
-						vrmDic[playerName] = orgVrm;
-						VRMModels.VrmBufDic[playerName] = File.ReadAllBytes(path);
+        static void LoadCustomPlayer(Player __instance, string playerName)
+        {
+            string path = Path.Combine(Environment.CurrentDirectory, "ValheimVRM", $"{playerName}.vrm");
 
-						//[Error: Unity Log] _Cutoff: Range
-						//[Error: Unity Log] _MainTex: Texture
-						//[Error: Unity Log] _SkinBumpMap: Texture
-						//[Error: Unity Log] _SkinColor: Color
-						//[Error: Unity Log] _ChestTex: Texture
-						//[Error: Unity Log] _ChestBumpMap: Texture
-						//[Error: Unity Log] _ChestMetal: Texture
-						//[Error: Unity Log] _LegsTex: Texture
-						//[Error: Unity Log] _LegsBumpMap: Texture
-						//[Error: Unity Log] _LegsMetal: Texture
-						//[Error: Unity Log] _BumpScale: Float
-						//[Error: Unity Log] _Glossiness: Range
-						//[Error: Unity Log] _MetalGlossiness: Range
+            ref ZNetView m_nview = ref AccessTools.FieldRefAccess<Player, ZNetView>("m_nview").Invoke(__instance);
+            if (!File.Exists(path))
+            {
+                Debug.LogErrorFormat("[ValheimVRM] VRM model for player {0} not found.", playerName);
+                Debug.LogErrorFormat("[ValheimVRM] VRM file path: {0}", path);
+            }
+            else
+            {
+                PlayerSettings settings = Settings.GetSettings(playerName);
+                if (settings == null && !Settings.AddSettingsFromFile(playerName))
+                {
+                    Debug.LogWarningFormat("[ValheimVRM] Settings file for {0} not found. Please check that the following file exists {1}",
+                        playerName, Settings.PlayerSettingsPath(playerName));
 
-						// シェーダ差し替え
-						float brightness = settings.modelBrightness;
-						List<Material> materials = new List<Material>();
-						foreach (SkinnedMeshRenderer smr in orgVrm.GetComponentsInChildren<SkinnedMeshRenderer>())
-						{
-							foreach (Material mat in smr.materials)
-							{
-								if (!materials.Contains(mat)) materials.Add(mat);
-							}
-						}
-						foreach (MeshRenderer mr in orgVrm.GetComponentsInChildren<MeshRenderer>())
-						{
-							foreach (Material mat in mr.materials)
-							{
-								if (!materials.Contains(mat)) materials.Add(mat);
-							}
-						}
+                }
 
-						if (settings.useMToonShader)
-						{
-							foreach (Material mat in materials)
-							{
-								if (mat.HasProperty("_Color"))
-								{
-									Color color = mat.GetColor("_Color");
-									color.r *= brightness;
-									color.g *= brightness;
-									color.b *= brightness;
-									mat.SetColor("_Color", color);
-								}
-							}
-						}
-						else
-						{
-							Shader shader = Shader.Find("Custom/Player");
-							foreach (Material mat in materials)
-							{
-								if (mat.shader == shader) continue;
+                float scale = settings.modelScale;
+                GameObject orgVrm = ImportVRM(path, scale);
+                if (orgVrm != null)
+                {
+                    GameObject.DontDestroyOnLoad(orgVrm);
+                    vrmDic[playerName] = orgVrm;
+                    VRMModels.VrmBufDic[playerName] = File.ReadAllBytes(path);
 
-								Color color = mat.HasProperty("_Color") ? mat.GetColor("_Color") : Color.white;
+                    //[Error: Unity Log] _Cutoff: Range
+                    //[Error: Unity Log] _MainTex: Texture
+                    //[Error: Unity Log] _SkinBumpMap: Texture
+                    //[Error: Unity Log] _SkinColor: Color
+                    //[Error: Unity Log] _ChestTex: Texture
+                    //[Error: Unity Log] _ChestBumpMap: Texture
+                    //[Error: Unity Log] _ChestMetal: Texture
+                    //[Error: Unity Log] _LegsTex: Texture
+                    //[Error: Unity Log] _LegsBumpMap: Texture
+                    //[Error: Unity Log] _LegsMetal: Texture
+                    //[Error: Unity Log] _BumpScale: Float
+                    //[Error: Unity Log] _Glossiness: Range
+                    //[Error: Unity Log] _MetalGlossiness: Range
 
-								Texture2D mainTex = mat.HasProperty("_MainTex") ? mat.GetTexture("_MainTex") as Texture2D : null;
-								Texture2D tex = mainTex;
-								if (mainTex != null)
-								{
-									tex = new Texture2D(mainTex.width, mainTex.height);
-									Color[] colors = mainTex.GetPixels();
-									for (int i = 0; i < colors.Length; i++)
-									{
-										Color col = colors[i] * color;
-										float h, s, v;
-										Color.RGBToHSV(col, out h, out s, out v);
-										v *= brightness;
-										colors[i] = Color.HSVToRGB(h, s, v);
-										colors[i].a = col.a;
-									}
-									tex.SetPixels(colors);
-									tex.Apply();
-								}
+                    // シェーダ差し替え
+                    float brightness = settings.modelBrightness;
+                    List<Material> materials = new List<Material>();
+                    GetMaterials(orgVrm, materials);
+                    SetMaterialBrightness(settings, brightness, materials);
 
-								Texture bumpMap = mat.HasProperty("_BumpMap") ? mat.GetTexture("_BumpMap") : null;
-								mat.shader = shader;
+                    LODGroup lodGroup = orgVrm.AddComponent<LODGroup>();
+                    LOD lod = new LOD(0.1f, orgVrm.GetComponentsInChildren<SkinnedMeshRenderer>());
+                    if (settings.enablePlayerFade) lodGroup.SetLODs(new LOD[] { lod });
+                    lodGroup.RecalculateBounds();
 
-								mat.SetTexture("_MainTex", tex);
-								mat.SetTexture("_SkinBumpMap", bumpMap);
-								mat.SetColor("_SkinColor", color);
-								mat.SetTexture("_ChestTex", tex);
-								mat.SetTexture("_ChestBumpMap", bumpMap);
-								mat.SetTexture("_LegsTex", tex);
-								mat.SetTexture("_LegsBumpMap", bumpMap);
-								mat.SetFloat("_Glossiness", 0.2f);
-								mat.SetFloat("_MetalGlossiness", 0.0f);
-								
-							}
-						}
+                    LODGroup orgLodGroup = __instance.GetComponentInChildren<LODGroup>();
+                    lodGroup.fadeMode = orgLodGroup.fadeMode;
+                    lodGroup.animateCrossFading = orgLodGroup.animateCrossFading;
 
-                        LODGroup lodGroup = orgVrm.AddComponent<LODGroup>();
-						LOD lod = new LOD(0.1f, orgVrm.GetComponentsInChildren<SkinnedMeshRenderer>());
-						if (settings.enablePlayerFade) lodGroup.SetLODs(new LOD[] { lod });
-						lodGroup.RecalculateBounds();
+                    orgVrm.SetActive(false);
+                }
+            }
+        }
 
-						LODGroup orgLodGroup = __instance.GetComponentInChildren<LODGroup>();
-						lodGroup.fadeMode = orgLodGroup.fadeMode;
-						lodGroup.animateCrossFading = orgLodGroup.animateCrossFading;
+        private static void SetMaterialBrightness(PlayerSettings settings, float brightness, List<Material> materials)
+        {
+            if (settings.useMToonShader)
+            {
+                foreach (Material mat in materials)
+                {
+                    if (mat.HasProperty("_Color"))
+                    {
+                        Color color = mat.GetColor("_Color");
+                        color.r *= brightness;
+                        color.g *= brightness;
+                        color.b *= brightness;
+                        mat.SetColor("_Color", color);
+                    }
+                }
+            }
+            else
+            {
+                Shader shader = Shader.Find("Custom/Player");
+                foreach (Material mat in materials)
+                {
+                    if (mat.shader == shader) continue;
 
-						orgVrm.SetActive(false);
-					}
-				}
-			}
+                    Color color = mat.HasProperty("_Color") ? mat.GetColor("_Color") : Color.white;
 
-			if (!string.IsNullOrEmpty(playerName) && vrmDic.ContainsKey(playerName))
-			{
-				GameObject vrmModel = GameObject.Instantiate(vrmDic[playerName]);
-				VRMModels.PlayerToVrmDic[__instance] = vrmModel;
-				VRMModels.PlayerToNameDic[__instance] = playerName;
-				vrmModel.SetActive(true);
-				vrmModel.transform.SetParent(__instance.GetComponentInChildren<Animator>().transform.parent, false);
+                    Texture2D mainTex = mat.HasProperty("_MainTex") ? mat.GetTexture("_MainTex") as Texture2D : null;
+                    Texture2D tex = mainTex;
+                    if (mainTex != null)
+                    {
+                        tex = new Texture2D(mainTex.width, mainTex.height);
+                        Color[] colors = mainTex.GetPixels();
+                        for (int i = 0; i < colors.Length; i++)
+                        {
+                            Color col = colors[i] * color;
+                            float h, s, v;
+                            Color.RGBToHSV(col, out h, out s, out v);
+                            v *= brightness;
+                            colors[i] = Color.HSVToRGB(h, s, v);
+                            colors[i].a = col.a;
+                        }
+                        tex.SetPixels(colors);
+                        tex.Apply();
+                    }
 
-				foreach (var smr in __instance.GetVisual().GetComponentsInChildren<SkinnedMeshRenderer>())
-				{
-					smr.forceRenderingOff = true;
-					smr.updateWhenOffscreen = true;
-				}
+                    Texture bumpMap = mat.HasProperty("_BumpMap") ? mat.GetTexture("_BumpMap") : null;
+                    mat.shader = shader;
 
-				Animator orgAnim = AccessTools.FieldRefAccess<Player, Animator>(__instance, "m_animator");
-				orgAnim.keepAnimatorStateOnDisable = true;
-				orgAnim.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+                    mat.SetTexture("_MainTex", tex);
+                    mat.SetTexture("_SkinBumpMap", bumpMap);
+                    mat.SetColor("_SkinColor", color);
+                    mat.SetTexture("_ChestTex", tex);
+                    mat.SetTexture("_ChestBumpMap", bumpMap);
+                    mat.SetTexture("_LegsTex", tex);
+                    mat.SetTexture("_LegsBumpMap", bumpMap);
+                    mat.SetFloat("_Glossiness", 0.2f);
+                    mat.SetFloat("_MetalGlossiness", 0.0f);
 
-				vrmModel.transform.localPosition = orgAnim.transform.localPosition;
+                }
+            }
+        }
 
-				// アニメーション同期
-				PlayerSettings settings = Settings.GetSettings(playerName);
-				float offsetY = settings.modelOffsetY;
-				if (vrmModel.GetComponent<VRMAnimationSync>() == null) vrmModel.AddComponent<VRMAnimationSync>().Setup(orgAnim, false, offsetY);
-				else vrmModel.GetComponent<VRMAnimationSync>().Setup(orgAnim, false, offsetY);
+        private static void GetMaterials(GameObject orgVrm, List<Material> materials)
+        {
+            foreach (SkinnedMeshRenderer smr in orgVrm.GetComponentsInChildren<SkinnedMeshRenderer>())
+            {
+                foreach (Material mat in smr.materials)
+                {
+                    if (!materials.Contains(mat)) materials.Add(mat);
+                }
+            }
+            foreach (MeshRenderer mr in orgVrm.GetComponentsInChildren<MeshRenderer>())
+            {
+                foreach (Material mat in mr.materials)
+                {
+                    if (!materials.Contains(mat)) materials.Add(mat);
+                }
+            }
+        }
 
-				// カメラ位置調整
-				if (settings.fixCameraHeight)
-				{
-					Transform vrmEye = vrmModel.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.LeftEye);
-					if (vrmEye == null) vrmEye = vrmModel.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.Head);
-					if (vrmEye == null) vrmEye = vrmModel.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.Neck);
-					if (vrmEye != null)
-					{
-						if (__instance.gameObject.GetComponent<VRMEyePositionSync>() == null) __instance.gameObject.AddComponent<VRMEyePositionSync>().Setup(vrmEye);
-						else __instance.gameObject.GetComponent<VRMEyePositionSync>().Setup(vrmEye);
-					}
-				}
+        [HarmonyPostfix]
+        static void Postfix(Player __instance)
+        {
+            string playerName = GetPlayerName(__instance);
 
-				// MToonの場合環境光の影響をカラーに反映する
-				if (settings.useMToonShader)
-				{
-					if (vrmModel.GetComponent<MToonColorSync>() == null) vrmModel.AddComponent<MToonColorSync>().Setup(vrmModel);
-					else vrmModel.GetComponent<MToonColorSync>().Setup(vrmModel);
-				}
 
-				// SpringBone設定
-				float stiffness = settings.springBoneStiffness;
-				float gravity = settings.springBoneGravityPower;
-				foreach (var springBone in vrmModel.GetComponentsInChildren<VRM.VRMSpringBone>())
-				{
-					springBone.m_stiffnessForce *= stiffness;
-					springBone.m_gravityPower *= gravity;
-					springBone.m_updateType = VRMSpringBone.SpringBoneUpdateType.FixedUpdate;
-					springBone.m_center = null;
-				}
-			}
-		}
+            if (!string.IsNullOrEmpty(playerName) && !vrmDic.ContainsKey(playerName))
+            {
+                LoadCustomPlayer(__instance, playerName);
+            }
 
-		private static GameObject ImportVRM(string path, float scale)
-		{
-			try
-			{
+            if (!string.IsNullOrEmpty(playerName) && vrmDic.ContainsKey(playerName))
+            {
+                InstanciatePlayer(__instance, playerName);
+            }
+        }
+
+        private static void InstanciatePlayer(Player __instance, string playerName)
+        {
+            GameObject vrmModel = GameObject.Instantiate(vrmDic[playerName]);
+            VRMModels.PlayerToVrmDic[__instance] = vrmModel;
+            VRMModels.PlayerToNameDic[__instance] = playerName;
+            vrmModel.SetActive(true);
+            vrmModel.transform.SetParent(__instance.GetComponentInChildren<Animator>().transform.parent, false);
+
+            foreach (var smr in __instance.GetVisual().GetComponentsInChildren<SkinnedMeshRenderer>())
+            {
+                smr.forceRenderingOff = true;
+                smr.updateWhenOffscreen = true;
+            }
+
+            Animator orgAnim = AccessTools.FieldRefAccess<Player, Animator>(__instance, "m_animator");
+            orgAnim.keepAnimatorStateOnDisable = true;
+            orgAnim.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+
+            vrmModel.transform.localPosition = orgAnim.transform.localPosition;
+
+            // アニメーション同期
+            PlayerSettings settings = Settings.GetSettings(playerName);
+            float offsetY = settings.modelOffsetY;
+            if (vrmModel.GetComponent<VRMAnimationSync>() == null) vrmModel.AddComponent<VRMAnimationSync>().Setup(orgAnim, false, offsetY);
+            else vrmModel.GetComponent<VRMAnimationSync>().Setup(orgAnim, false, offsetY);
+
+            // カメラ位置調整
+            if (settings.fixCameraHeight)
+            {
+                Transform vrmEye = vrmModel.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.LeftEye);
+                if (vrmEye == null) vrmEye = vrmModel.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.Head);
+                if (vrmEye == null) vrmEye = vrmModel.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.Neck);
+                if (vrmEye != null)
+                {
+                    if (__instance.gameObject.GetComponent<VRMEyePositionSync>() == null) __instance.gameObject.AddComponent<VRMEyePositionSync>().Setup(vrmEye);
+                    else __instance.gameObject.GetComponent<VRMEyePositionSync>().Setup(vrmEye);
+                }
+            }
+
+            // MToonの場合環境光の影響をカラーに反映する
+            if (settings.useMToonShader)
+            {
+                if (vrmModel.GetComponent<MToonColorSync>() == null) vrmModel.AddComponent<MToonColorSync>().Setup(vrmModel);
+                else vrmModel.GetComponent<MToonColorSync>().Setup(vrmModel);
+            }
+
+            // SpringBone設定
+            float stiffness = settings.springBoneStiffness;
+            float gravity = settings.springBoneGravityPower;
+            foreach (var springBone in vrmModel.GetComponentsInChildren<VRM.VRMSpringBone>())
+            {
+                springBone.m_stiffnessForce *= stiffness;
+                springBone.m_gravityPower *= gravity;
+                springBone.m_updateType = VRMSpringBone.SpringBoneUpdateType.FixedUpdate;
+                springBone.m_center = null;
+            }
+        }
+
+        private static GameObject ImportVRM(string path, float scale)
+        {
+            try
+            {
                 GltfData data = new GlbFileParser(path).Parse();
-				VRMData vrm = new VRMData(data);
+                VRMData vrm = new VRMData(data);
                 VRMImporterContext context = new VRMImporterContext(vrm);
                 RuntimeGltfInstance loaded = default(RuntimeGltfInstance);
-				loaded = context.Load();
-				loaded.ShowMeshes();
-				loaded.Root.transform.localScale *= scale;
+                loaded = context.Load();
+                loaded.ShowMeshes();
+                loaded.Root.transform.localScale *= scale;
 
-				Debug.Log("[ValheimVRM] Module successfully loaded");
-				Debug.LogFormat("[ValheimVRM] VRM file path: {0}", path);
+                Debug.Log("[ValheimVRM] Module successfully loaded");
+                Debug.LogFormat("[ValheimVRM] VRM file path: {0}", path);
 
-				return loaded.Root;
-			}
-			catch (Exception ex)
-			{
-				Debug.LogError(ex);
-			}
+                return loaded.Root;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError(ex);
+            }
 
-			return null;
-		}
-	}
+            return null;
+        }
+    }
 }

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Text.RegularExpressions;
 using UnityEngine;
@@ -33,11 +32,11 @@ namespace ValheimVRM
 
         public string Name() => this.name;
     }
-	static class Settings
-	{
-		public static string ValheimVRMDir => Path.Combine(Environment.CurrentDirectory, "ValheimVRM");
+    static class Settings
+    {
+        public static string ValheimVRMDir => Path.Combine(Environment.CurrentDirectory, "ValheimVRM");
 
-		public static string PlayerSettingsPath(string playerName) => Path.Combine(ValheimVRMDir, $"settings_{playerName}.txt");
+        public static string PlayerSettingsPath(string playerName) => Path.Combine(ValheimVRMDir, $"settings_{playerName}.txt");
         private static List<PlayerSettings> playerSettingsList = new List<PlayerSettings>();
 
         public static PlayerSettings GetSettings(string playerName) => playerSettingsList.Find(x => x.Name() == playerName);
@@ -91,8 +90,9 @@ namespace ValheimVRM
                             Debug.LogFormat("[ValheimVRM] {0} = {1}", args[0], args[1]);
                         else
                             Debug.LogErrorFormat("[ValheimVRM] impossible to parse {0} at {1}", args[0], str);
-                            
-                    } catch (Exception ex)
+
+                    }
+                    catch (Exception ex)
                     {
                         Debug.LogException(ex);
                     }
