@@ -89,17 +89,17 @@ namespace ValheimVRM
 			string name = VRMModels.PlayerToNameDic[player];
 
 			GameObject leftItem = __instance.GetField<VisEquipment, GameObject>("m_leftItemInstance");
-			if (leftItem != null) leftItem.transform.localPosition = Settings.ReadVector3(name, "LeftHandEuqipPos", Vector3.zero);
+			if (leftItem != null) leftItem.transform.localPosition = Settings.GetSettings(name).leftHandEquipPos;
 
             GameObject rightItem = __instance.GetField<VisEquipment, GameObject>("m_rightItemInstance");
-			if (rightItem != null) rightItem.transform.localPosition = Settings.ReadVector3(name, "RightHandEuqipPos", Vector3.zero);
+			if (rightItem != null) rightItem.transform.localPosition = Settings.GetSettings(name).rightHandEquipPos;
 
             // divided  by 100 to keep the settings file positions in the same number range. (position offset appears to be on the world, not local)
             GameObject rightBackItem = __instance.GetField<VisEquipment, GameObject>("m_rightBackItemInstance");
-			if (rightBackItem != null) rightBackItem.transform.localPosition = Settings.ReadVector3(name, "RightHandBackItemPos", Vector3.zero) / 100.0f;
+			if (rightBackItem != null) rightBackItem.transform.localPosition = Settings.GetSettings(name).rightHandBackItemPos / 100.0f;
 
             GameObject leftBackItem = __instance.GetField<VisEquipment, GameObject>("m_leftBackItemInstance");
-			if (leftBackItem != null) leftBackItem.transform.localPosition = Settings.ReadVector3(name, "LeftHandBackItemPos", Vector3.zero) / 100.0f;
+			if (leftBackItem != null) leftBackItem.transform.localPosition = Settings.GetSettings(name).leftHandBackItemPos / 100.0f;
 		}
 
 		private static void SetVisible(GameObject obj, bool flag)
@@ -170,7 +170,7 @@ namespace ValheimVRM
 		{
 			string name = null;
 			if (VRMModels.PlayerToNameDic.ContainsKey(__instance)) name = VRMModels.PlayerToNameDic[__instance];
-			if (name != null && Settings.ReadBool(name, "FixCameraHeight", true))
+			if (name != null && Settings.GetSettings(name).fixCameraHeight)
 			{
 				GameObject.Destroy(__instance.GetComponent<VRMEyePositionSync>());
 			}
@@ -235,7 +235,8 @@ namespace ValheimVRM
 				}
 				else
 				{
-					if (!Settings.ContainsSettings(playerName))
+					PlayerSettings settings = Settings.GetSettings(playerName);
+					if (settings == null)
 					{
 						if (!Settings.AddSettingsFromFile(playerName))
 						{
@@ -244,7 +245,7 @@ namespace ValheimVRM
 						}
 					}
 
-					float scale = Settings.ReadFloat(playerName, "ModelScale", 1.1f);
+					float scale = settings.modelScale;
 					GameObject orgVrm =  ImportVRM(path, scale);
 					if (orgVrm != null)
 					{
@@ -267,7 +268,7 @@ namespace ValheimVRM
 						//[Error: Unity Log] _MetalGlossiness: Range
 
 						// シェーダ差し替え
-						float brightness = Settings.ReadFloat(playerName, "ModelBrightness", 0.8f);
+						float brightness = settings.modelBrightness;
 						List<Material> materials = new List<Material>();
 						foreach (SkinnedMeshRenderer smr in orgVrm.GetComponentsInChildren<SkinnedMeshRenderer>())
 						{
@@ -284,7 +285,7 @@ namespace ValheimVRM
 							}
 						}
 
-						if (Settings.ReadBool(playerName, "UseMToonShader", false))
+						if (settings.useMToonShader)
 						{
 							foreach (Material mat in materials)
 							{
@@ -344,7 +345,7 @@ namespace ValheimVRM
 
                         LODGroup lodGroup = orgVrm.AddComponent<LODGroup>();
 						LOD lod = new LOD(0.1f, orgVrm.GetComponentsInChildren<SkinnedMeshRenderer>());
-						if (Settings.ReadBool(playerName, "EnablePlayerFade", true)) lodGroup.SetLODs(new LOD[] { lod });
+						if (settings.enablePlayerFade) lodGroup.SetLODs(new LOD[] { lod });
 						lodGroup.RecalculateBounds();
 
 						LODGroup orgLodGroup = __instance.GetComponentInChildren<LODGroup>();
@@ -377,12 +378,13 @@ namespace ValheimVRM
 				vrmModel.transform.localPosition = orgAnim.transform.localPosition;
 
 				// アニメーション同期
-				float offsetY = Settings.ReadFloat(playerName, "ModelOffsetY");
+				PlayerSettings settings = Settings.GetSettings(playerName);
+				float offsetY = settings.modelOffsetY;
 				if (vrmModel.GetComponent<VRMAnimationSync>() == null) vrmModel.AddComponent<VRMAnimationSync>().Setup(orgAnim, false, offsetY);
 				else vrmModel.GetComponent<VRMAnimationSync>().Setup(orgAnim, false, offsetY);
 
 				// カメラ位置調整
-				if (Settings.ReadBool(playerName, "FixCameraHeight", true))
+				if (settings.fixCameraHeight)
 				{
 					Transform vrmEye = vrmModel.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.LeftEye);
 					if (vrmEye == null) vrmEye = vrmModel.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.Head);
@@ -395,15 +397,15 @@ namespace ValheimVRM
 				}
 
 				// MToonの場合環境光の影響をカラーに反映する
-				if (Settings.ReadBool(playerName, "UseMToonShader", false))
+				if (settings.useMToonShader)
 				{
 					if (vrmModel.GetComponent<MToonColorSync>() == null) vrmModel.AddComponent<MToonColorSync>().Setup(vrmModel);
 					else vrmModel.GetComponent<MToonColorSync>().Setup(vrmModel);
 				}
 
 				// SpringBone設定
-				float stiffness = Settings.ReadFloat(playerName, "SpringBoneStiffness", 1.0f);
-				float gravity = Settings.ReadFloat(playerName, "SpringBoneGravityPower", 1.0f);
+				float stiffness = settings.springBoneStiffness;
+				float gravity = settings.springBoneGravityPower;
 				foreach (var springBone in vrmModel.GetComponentsInChildren<VRM.VRMSpringBone>())
 				{
 					springBone.m_stiffnessForce *= stiffness;
