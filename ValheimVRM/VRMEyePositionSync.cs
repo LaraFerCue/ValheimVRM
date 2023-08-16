@@ -20,7 +20,7 @@ namespace ValheimVRM
 
 		void Update()
 		{
-			var pos = this.orgEye.position;
+			Vector3 pos = this.orgEye.position;
 			pos.y = this.vrmEye.position.y;
 			this.orgEye.position = pos;
 		}

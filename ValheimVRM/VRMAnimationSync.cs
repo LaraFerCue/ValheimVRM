@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace ValheimVRM
 {
-	[DefaultExecutionOrder(int.MaxValue)]
+	//[DefaultExecutionOrder(int.MaxValue)]
 	public class VRMAnimationSync : MonoBehaviour
 	{
 		private Animator orgAnim, vrmAnim;
@@ -48,13 +48,13 @@ namespace ValheimVRM
 
 		private float CalcFootSub()
 		{
-			var orgRightFoot = orgAnim.GetBoneTransform(HumanBodyBones.RightFoot).position;
-			var orgLeftFoot = orgAnim.GetBoneTransform(HumanBodyBones.LeftFoot).position;
-			var orgArgFoot = (orgRightFoot + orgLeftFoot) * 0.5f;
+			Vector3 orgRightFoot = orgAnim.GetBoneTransform(HumanBodyBones.RightFoot).position;
+            Vector3 orgLeftFoot = orgAnim.GetBoneTransform(HumanBodyBones.LeftFoot).position;
+            Vector3 orgArgFoot = (orgRightFoot + orgLeftFoot) * 0.5f;
 
-			var vrmRightFoot = vrmAnim.GetBoneTransform(HumanBodyBones.RightFoot).position;
-			var vrmLeftFoot = vrmAnim.GetBoneTransform(HumanBodyBones.LeftFoot).position;
-			var vrmArgFoot = (vrmRightFoot + vrmLeftFoot) * 0.5f;
+            Vector3 vrmRightFoot = vrmAnim.GetBoneTransform(HumanBodyBones.RightFoot).position;
+            Vector3 vrmLeftFoot = vrmAnim.GetBoneTransform(HumanBodyBones.LeftFoot).position;
+            Vector3 vrmArgFoot = (vrmRightFoot + vrmLeftFoot) * 0.5f;
 
 			return (orgArgFoot - vrmArgFoot).y;
 		}
@@ -89,10 +89,10 @@ namespace ValheimVRM
 			vrmAnim.transform.localPosition = Vector3.zero;
 			if (!ragdoll)
 			{
-				for (var i = 0; i < 55; i++)
+				for (int i = 0; i < 55; i++)
 				{
-					var orgTrans = orgAnim.GetBoneTransform((HumanBodyBones)i);
-					var vrmTrans = vrmAnim.GetBoneTransform((HumanBodyBones)i);
+					Transform orgTrans = orgAnim.GetBoneTransform((HumanBodyBones)i);
+					Transform vrmTrans = vrmAnim.GetBoneTransform((HumanBodyBones)i);
 
 					if (i > 0 && orgTrans != null && vrmTrans != null)
 					{
@@ -112,12 +112,12 @@ namespace ValheimVRM
 		{
 			vrmAnim.transform.localPosition = Vector3.zero;
 			
-			var orgHipPos = orgAnim.GetBoneTransform(HumanBodyBones.Hips).position;
+			Vector3 orgHipPos = orgAnim.GetBoneTransform(HumanBodyBones.Hips).position;
 			orgPose.GetHumanPose(ref hp);
 			vrmPose.SetHumanPose(ref hp);
 
-			var nameHash = orgAnim.GetCurrentAnimatorStateInfo(0).shortNameHash;
-			var adjustFromHip = adjustHipHashes.Contains(nameHash);
+			int nameHash = orgAnim.GetCurrentAnimatorStateInfo(0).shortNameHash;
+			bool adjustFromHip = adjustHipHashes.Contains(nameHash);
 
 			//if (!alreadyHashes.Contains(nameHash))
 			//{
@@ -125,13 +125,13 @@ namespace ValheimVRM
 			//	Debug.Log(orgAnim.GetCurrentAnimatorClipInfo(0)[0].clip.name + ": " + nameHash);
 			//}
 
-			var vrmHip = vrmAnim.GetBoneTransform(HumanBodyBones.Hips);
+			Transform vrmHip = vrmAnim.GetBoneTransform(HumanBodyBones.Hips);
 			if (adjustFromHip)
 			{
 				vrmHip.position = orgHipPos;
 			}
 			
-			var adjustHeight = 0.0f;
+			float adjustHeight = 0.0f;
 			if (nameHash == 890925016 || nameHash == -1544306596 || nameHash == -1829310159) // Sitting
 			{
 				adjustHeight += 0.1f;
@@ -142,7 +142,7 @@ namespace ValheimVRM
 				adjustHeight = CalcFootSub();
 			}
 
-			var pos = vrmHip.position;
+			Vector3 pos = vrmHip.position;
 			pos.y += adjustHeight;
 			vrmHip.position = pos;
 			
@@ -150,8 +150,8 @@ namespace ValheimVRM
 			{
 				for (var i = 0; i < 55; i++)
 				{
-					var orgTrans = orgAnim.GetBoneTransform((HumanBodyBones)i);
-					var vrmTrans = vrmAnim.GetBoneTransform((HumanBodyBones)i);
+					Transform orgTrans = orgAnim.GetBoneTransform((HumanBodyBones)i);
+                    Transform vrmTrans = vrmAnim.GetBoneTransform((HumanBodyBones)i);
 
 					if (i > 0 && orgTrans != null && vrmTrans != null)
 					{

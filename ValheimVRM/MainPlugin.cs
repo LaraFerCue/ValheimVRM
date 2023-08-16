@@ -15,7 +15,7 @@ namespace ValheimVRM
         void Awake()
         {
             // Harmonyパッチ作成
-            var harmony = new Harmony("com.yoship1639.plugins.valheimvrm.patch");
+            Harmony harmony = new Harmony("com.yoship1639.plugins.valheimvrm.patch");
 
             // Harmonyパッチ全てを適用する
             harmony.PatchAll();

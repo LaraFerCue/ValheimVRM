@@ -36,9 +36,9 @@ namespace ValheimVRM
 		public void Setup(GameObject vrm)
 		{
 			matColors.Clear();
-			foreach (var smr in vrm.GetComponentsInChildren<SkinnedMeshRenderer>())
+			foreach (SkinnedMeshRenderer smr in vrm.GetComponentsInChildren<SkinnedMeshRenderer>())
 			{
-				foreach (var mat in smr.materials)
+				foreach (Material mat in smr.materials)
 				{
 					if (!matColors.Exists(m => m.mat == mat))
 					{
@@ -60,22 +60,22 @@ namespace ValheimVRM
 		void Update()
 		{
 			//var fog = Shader.GetGlobalColor(_SunFogColor);
-			var sun = Shader.GetGlobalColor(_SunColor);
-			var amb = Shader.GetGlobalColor(_AmbientColor);
-			var sunAmb = sun + amb;
+			Color sun = Shader.GetGlobalColor(_SunColor);
+			Color amb = Shader.GetGlobalColor(_AmbientColor);
+			Color sunAmb = sun + amb;
 			if (sunAmb.maxColorComponent > 0.7f) sunAmb /= 0.3f + sunAmb.maxColorComponent;
 
-			foreach (var matColor in matColors)
+			foreach (MatColor matColor in matColors)
 			{
-				var col = matColor.color * sunAmb;
+				Color col = matColor.color * sunAmb;
 				col.a = matColor.color.a;
 				if (col.maxColorComponent > 1.0f) col /= col.maxColorComponent;
 
-				var shadeCol = matColor.shadeColor * sunAmb;
+				Color shadeCol = matColor.shadeColor * sunAmb;
 				shadeCol.a = matColor.shadeColor.a;
 				if (shadeCol.maxColorComponent > 1.0f) shadeCol /= shadeCol.maxColorComponent;
 
-				var emi = matColor.emission * sunAmb.grayscale;
+				Color emi = matColor.emission * sunAmb.grayscale;
 
 				if (matColor.hasColor) matColor.mat.SetColor("_Color", col);
 				if (matColor.hasShadeColor) matColor.mat.SetColor("_ShadeColor", shadeCol);

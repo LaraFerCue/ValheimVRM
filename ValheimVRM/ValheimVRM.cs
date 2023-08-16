@@ -1,5 +1,6 @@
 ﻿using HarmonyLib;
 using System;
+using System.CodeDom;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -35,9 +36,9 @@ namespace ValheimVRM
 			var bundlePath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), @"ValheimVRM.shaders");
 			if (File.Exists(bundlePath))
 			{
-				var assetBundle = AssetBundle.LoadFromFile(bundlePath);
-				var assets = assetBundle.LoadAllAssets<Shader>();
-				foreach (var asset in assets)
+                AssetBundle assetBundle = AssetBundle.LoadFromFile(bundlePath);
+                Shader[] assets = assetBundle.LoadAllAssets<Shader>();
+				foreach (Shader asset in assets)
 				{
 					UnityEngine.Debug.Log("[ValheimVRM] Add Shader: " + asset.name);
 					Shaders.Add(asset.name, asset);
@@ -60,51 +61,51 @@ namespace ValheimVRM
 		static void Postfix(VisEquipment __instance)
 		{
 			if (!__instance.m_isPlayer) return;
-			var player = __instance.GetComponent<Player>();
+			Player player = __instance.GetComponent<Player>();
 			if (player == null || !VRMModels.PlayerToVrmDic.ContainsKey(player)) return;
 
-			var hair = __instance.GetField<VisEquipment, GameObject>("m_hairItemInstance");
+			GameObject hair = __instance.GetField<VisEquipment, GameObject>("m_hairItemInstance");
 			if (hair != null) SetVisible(hair, false);
 
-			var beard = __instance.GetField<VisEquipment, GameObject>("m_beardItemInstance");
+			GameObject beard = __instance.GetField<VisEquipment, GameObject>("m_beardItemInstance");
 			if (beard != null) SetVisible(beard, false);
 
-			var chestList = __instance.GetField<VisEquipment, List<GameObject>>("m_chestItemInstances");
+			List<GameObject> chestList = __instance.GetField<VisEquipment, List<GameObject>>("m_chestItemInstances");
 			if (chestList != null) foreach (var chest in chestList) SetVisible(chest, false);
 
-			var legList = __instance.GetField<VisEquipment, List<GameObject>>("m_legItemInstances");
+            List<GameObject> legList = __instance.GetField<VisEquipment, List<GameObject>>("m_legItemInstances");
 			if (legList != null) foreach (var leg in legList) SetVisible(leg, false);
 
-			var shoulderList = __instance.GetField<VisEquipment, List<GameObject>>("m_shoulderItemInstances");
+            List<GameObject> shoulderList = __instance.GetField<VisEquipment, List<GameObject>>("m_shoulderItemInstances");
 			if (shoulderList != null) foreach (var shoulder in shoulderList) SetVisible(shoulder, false);
 
-			var utilityList = __instance.GetField<VisEquipment, List<GameObject>>("m_utilityItemInstances");
+            List<GameObject> utilityList = __instance.GetField<VisEquipment, List<GameObject>>("m_utilityItemInstances");
 			if (utilityList != null) foreach (var utility in utilityList) SetVisible(utility, false);
 
-			var helmet = __instance.GetField<VisEquipment, GameObject>("m_helmetItemInstance");
+            GameObject helmet = __instance.GetField<VisEquipment, GameObject>("m_helmetItemInstance");
 			if (helmet != null) SetVisible(helmet, false);
 
 			// 武器位置合わせ
-			var name = VRMModels.PlayerToNameDic[player];
+			string name = VRMModels.PlayerToNameDic[player];
 
-			var leftItem = __instance.GetField<VisEquipment, GameObject>("m_leftItemInstance");
+			GameObject leftItem = __instance.GetField<VisEquipment, GameObject>("m_leftItemInstance");
 			if (leftItem != null) leftItem.transform.localPosition = Settings.ReadVector3(name, "LeftHandEuqipPos", Vector3.zero);
 
-			var rightItem = __instance.GetField<VisEquipment, GameObject>("m_rightItemInstance");
+            GameObject rightItem = __instance.GetField<VisEquipment, GameObject>("m_rightItemInstance");
 			if (rightItem != null) rightItem.transform.localPosition = Settings.ReadVector3(name, "RightHandEuqipPos", Vector3.zero);
-			
-			// divided  by 100 to keep the settings file positions in the same number range. (position offset appears to be on the world, not local)
-			var rightBackItem = __instance.GetField<VisEquipment, GameObject>("m_rightBackItemInstance");
+
+            // divided  by 100 to keep the settings file positions in the same number range. (position offset appears to be on the world, not local)
+            GameObject rightBackItem = __instance.GetField<VisEquipment, GameObject>("m_rightBackItemInstance");
 			if (rightBackItem != null) rightBackItem.transform.localPosition = Settings.ReadVector3(name, "RightHandBackItemPos", Vector3.zero) / 100.0f;
-			
-			var leftBackItem = __instance.GetField<VisEquipment, GameObject>("m_leftBackItemInstance");
+
+            GameObject leftBackItem = __instance.GetField<VisEquipment, GameObject>("m_leftBackItemInstance");
 			if (leftBackItem != null) leftBackItem.transform.localPosition = Settings.ReadVector3(name, "LeftHandBackItemPos", Vector3.zero) / 100.0f;
 		}
 
 		private static void SetVisible(GameObject obj, bool flag)
 		{
-			foreach (var mr in obj.GetComponentsInChildren<MeshRenderer>()) mr.enabled = flag;
-			foreach (var smr in obj.GetComponentsInChildren<SkinnedMeshRenderer>()) smr.enabled = flag;
+			foreach (MeshRenderer mr in obj.GetComponentsInChildren<MeshRenderer>()) mr.enabled = flag;
+			foreach (SkinnedMeshRenderer smr in obj.GetComponentsInChildren<SkinnedMeshRenderer>()) smr.enabled = flag;
 		}
 	}
 
@@ -116,21 +117,21 @@ namespace ValheimVRM
 		{
 			if (!__instance.IsPlayer()) return;
 
-			foreach (var smr in ragdoll.GetComponentsInChildren<SkinnedMeshRenderer>())
+			foreach (SkinnedMeshRenderer smr in ragdoll.GetComponentsInChildren<SkinnedMeshRenderer>())
 			{
 				smr.forceRenderingOff = true;
 				smr.updateWhenOffscreen = true;
 			}
 			
 
-			var ragAnim = ragdoll.gameObject.AddComponent<Animator>();
-			ragAnim.keepAnimatorControllerStateOnDisable = true;
+			Animator ragAnim = ragdoll.gameObject.AddComponent<Animator>();
+			ragAnim.keepAnimatorStateOnDisable = true;
 			ragAnim.cullingMode = AnimatorCullingMode.AlwaysAnimate;
 
-			var orgAnim = ((Player)__instance).GetField<Player, Animator>("m_animator");
+			Animator orgAnim = ((Player)__instance).GetField<Player, Animator>("m_animator");
 			ragAnim.avatar = orgAnim.avatar;
 
-			if (VRMModels.PlayerToVrmDic.TryGetValue((Player)__instance, out var vrm))
+			if (VRMModels.PlayerToVrmDic.TryGetValue((Player)__instance, out GameObject vrm))
 			{
 				vrm.transform.SetParent(ragdoll.transform);
 				vrm.GetComponent<VRMAnimationSync>().Setup(ragAnim, true);
@@ -146,9 +147,9 @@ namespace ValheimVRM
 		{
 			if (!__instance.IsPlayer()) return;
 
-			if (VRMModels.PlayerToVrmDic.TryGetValue((Player)__instance, out var vrm))
+			if (VRMModels.PlayerToVrmDic.TryGetValue((Player)__instance, out GameObject vrm))
 			{
-				var lodGroup = vrm.GetComponent<LODGroup>();
+				LODGroup lodGroup = vrm.GetComponent<LODGroup>();
 				if (visible)
 				{
 					lodGroup.localReferencePoint = __instance.GetField<Character, Vector3>("m_originalLocalRef");
@@ -182,15 +183,15 @@ namespace ValheimVRM
 		[HarmonyPostfix]
 		static bool Prefix(Character __instance, ref Vector3 __result)
 		{
-			var player = __instance as Player;
+			Player player = __instance as Player;
 			if (player == null) return true;
 
-			if (VRMModels.PlayerToVrmDic.TryGetValue(player, out var vrm))
+			if (VRMModels.PlayerToVrmDic.TryGetValue(player, out GameObject vrm))
 			{
-				var animator = vrm.GetComponentInChildren<Animator>();
+				Animator animator = vrm.GetComponentInChildren<Animator>();
 				if (animator == null) return true;
 
-				var head = animator.GetBoneTransform(HumanBodyBones.Head);
+				Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
 				if (head == null) return true;
 
 				__result = head.position;
@@ -217,16 +218,16 @@ namespace ValheimVRM
 			}
 			else
 			{
-				var index = FejdStartup.instance.GetField<FejdStartup, int>("m_profileIndex");
-				var profiles = FejdStartup.instance.GetField<FejdStartup, List<PlayerProfile>>("m_profiles");
+				int index = FejdStartup.instance.GetField<FejdStartup, int>("m_profileIndex");
+				List<PlayerProfile> profiles = FejdStartup.instance.GetField<FejdStartup, List<PlayerProfile>>("m_profiles");
 				if (index >= 0 && index < profiles.Count) playerName = profiles[index].GetName();
 			}
 
 			if (!string.IsNullOrEmpty(playerName) && !vrmDic.ContainsKey(playerName))
 			{
-				var path = Path.Combine(Environment.CurrentDirectory, "ValheimVRM", $"{playerName}.vrm");
+				string path = Path.Combine(Environment.CurrentDirectory, "ValheimVRM", $"{playerName}.vrm");
 
-				ref var m_nview = ref AccessTools.FieldRefAccess<Player, ZNetView>("m_nview").Invoke(__instance);
+				ref ZNetView m_nview = ref AccessTools.FieldRefAccess<Player, ZNetView>("m_nview").Invoke(__instance);
 				if (!File.Exists(path))
 				{
 					Debug.LogError("[ValheimVRM] VRMファイルが見つかりません.");
@@ -242,8 +243,8 @@ namespace ValheimVRM
 						}
 					}
 
-					var scale = Settings.ReadFloat(playerName, "ModelScale", 1.1f);
-					var orgVrm =  ImportVRM(path, scale);
+					float scale = Settings.ReadFloat(playerName, "ModelScale", 1.1f);
+					GameObject orgVrm =  ImportVRM(path, scale);
 					if (orgVrm != null)
 					{
 						GameObject.DontDestroyOnLoad(orgVrm);
@@ -265,18 +266,18 @@ namespace ValheimVRM
 						//[Error: Unity Log] _MetalGlossiness: Range
 
 						// シェーダ差し替え
-						var brightness = Settings.ReadFloat(playerName, "ModelBrightness", 0.8f);
-						var materials = new List<Material>();
-						foreach (var smr in orgVrm.GetComponentsInChildren<SkinnedMeshRenderer>())
+						float brightness = Settings.ReadFloat(playerName, "ModelBrightness", 0.8f);
+						List<Material> materials = new List<Material>();
+						foreach (SkinnedMeshRenderer smr in orgVrm.GetComponentsInChildren<SkinnedMeshRenderer>())
 						{
-							foreach (var mat in smr.materials)
+							foreach (Material mat in smr.materials)
 							{
 								if (!materials.Contains(mat)) materials.Add(mat);
 							}
 						}
-						foreach (var mr in orgVrm.GetComponentsInChildren<MeshRenderer>())
+						foreach (MeshRenderer mr in orgVrm.GetComponentsInChildren<MeshRenderer>())
 						{
-							foreach (var mat in mr.materials)
+							foreach (Material mat in mr.materials)
 							{
 								if (!materials.Contains(mat)) materials.Add(mat);
 							}
@@ -284,11 +285,11 @@ namespace ValheimVRM
 
 						if (Settings.ReadBool(playerName, "UseMToonShader", false))
 						{
-							foreach (var mat in materials)
+							foreach (Material mat in materials)
 							{
 								if (mat.HasProperty("_Color"))
 								{
-									var color = mat.GetColor("_Color");
+									Color color = mat.GetColor("_Color");
 									color.r *= brightness;
 									color.g *= brightness;
 									color.b *= brightness;
@@ -298,22 +299,22 @@ namespace ValheimVRM
 						}
 						else
 						{
-							var shader = Shader.Find("Custom/Player");
-							foreach (var mat in materials)
+							Shader shader = Shader.Find("Custom/Player");
+							foreach (Material mat in materials)
 							{
 								if (mat.shader == shader) continue;
 
-								var color = mat.HasProperty("_Color") ? mat.GetColor("_Color") : Color.white;
+								Color color = mat.HasProperty("_Color") ? mat.GetColor("_Color") : Color.white;
 
-								var mainTex = mat.HasProperty("_MainTex") ? mat.GetTexture("_MainTex") as Texture2D : null;
+								Texture2D mainTex = mat.HasProperty("_MainTex") ? mat.GetTexture("_MainTex") as Texture2D : null;
 								Texture2D tex = mainTex;
 								if (mainTex != null)
 								{
 									tex = new Texture2D(mainTex.width, mainTex.height);
-									var colors = mainTex.GetPixels();
-									for (var i = 0; i < colors.Length; i++)
+									Color[] colors = mainTex.GetPixels();
+									for (int i = 0; i < colors.Length; i++)
 									{
-										var col = colors[i] * color;
+										Color col = colors[i] * color;
 										float h, s, v;
 										Color.RGBToHSV(col, out h, out s, out v);
 										v *= brightness;
@@ -324,7 +325,7 @@ namespace ValheimVRM
 									tex.Apply();
 								}
 
-								var bumpMap = mat.HasProperty("_BumpMap") ? mat.GetTexture("_BumpMap") : null;
+								Texture bumpMap = mat.HasProperty("_BumpMap") ? mat.GetTexture("_BumpMap") : null;
 								mat.shader = shader;
 
 								mat.SetTexture("_MainTex", tex);
@@ -340,12 +341,12 @@ namespace ValheimVRM
 							}
 						}
 
-						var lodGroup = orgVrm.AddComponent<LODGroup>();
-						var lod = new LOD(0.1f, orgVrm.GetComponentsInChildren<SkinnedMeshRenderer>());
+                        LODGroup lodGroup = orgVrm.AddComponent<LODGroup>();
+						LOD lod = new LOD(0.1f, orgVrm.GetComponentsInChildren<SkinnedMeshRenderer>());
 						if (Settings.ReadBool(playerName, "EnablePlayerFade", true)) lodGroup.SetLODs(new LOD[] { lod });
 						lodGroup.RecalculateBounds();
 
-						var orgLodGroup = __instance.GetComponentInChildren<LODGroup>();
+						LODGroup orgLodGroup = __instance.GetComponentInChildren<LODGroup>();
 						lodGroup.fadeMode = orgLodGroup.fadeMode;
 						lodGroup.animateCrossFading = orgLodGroup.animateCrossFading;
 
@@ -356,7 +357,7 @@ namespace ValheimVRM
 
 			if (!string.IsNullOrEmpty(playerName) && vrmDic.ContainsKey(playerName))
 			{
-				var vrmModel = GameObject.Instantiate(vrmDic[playerName]);
+				GameObject vrmModel = GameObject.Instantiate(vrmDic[playerName]);
 				VRMModels.PlayerToVrmDic[__instance] = vrmModel;
 				VRMModels.PlayerToNameDic[__instance] = playerName;
 				vrmModel.SetActive(true);
@@ -368,21 +369,21 @@ namespace ValheimVRM
 					smr.updateWhenOffscreen = true;
 				}
 
-				var orgAnim = AccessTools.FieldRefAccess<Player, Animator>(__instance, "m_animator");
-				orgAnim.keepAnimatorControllerStateOnDisable = true;
+				Animator orgAnim = AccessTools.FieldRefAccess<Player, Animator>(__instance, "m_animator");
+				orgAnim.keepAnimatorStateOnDisable = true;
 				orgAnim.cullingMode = AnimatorCullingMode.AlwaysAnimate;
 
 				vrmModel.transform.localPosition = orgAnim.transform.localPosition;
 
 				// アニメーション同期
-				var offsetY = Settings.ReadFloat(playerName, "ModelOffsetY");
+				float offsetY = Settings.ReadFloat(playerName, "ModelOffsetY");
 				if (vrmModel.GetComponent<VRMAnimationSync>() == null) vrmModel.AddComponent<VRMAnimationSync>().Setup(orgAnim, false, offsetY);
 				else vrmModel.GetComponent<VRMAnimationSync>().Setup(orgAnim, false, offsetY);
 
 				// カメラ位置調整
 				if (Settings.ReadBool(playerName, "FixCameraHeight", true))
 				{
-					var vrmEye = vrmModel.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.LeftEye);
+					Transform vrmEye = vrmModel.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.LeftEye);
 					if (vrmEye == null) vrmEye = vrmModel.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.Head);
 					if (vrmEye == null) vrmEye = vrmModel.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.Neck);
 					if (vrmEye != null)
@@ -400,8 +401,8 @@ namespace ValheimVRM
 				}
 
 				// SpringBone設定
-				var stiffness = Settings.ReadFloat(playerName, "SpringBoneStiffness", 1.0f);
-				var gravity = Settings.ReadFloat(playerName, "SpringBoneGravityPower", 1.0f);
+				float stiffness = Settings.ReadFloat(playerName, "SpringBoneStiffness", 1.0f);
+				float gravity = Settings.ReadFloat(playerName, "SpringBoneGravityPower", 1.0f);
 				foreach (var springBone in vrmModel.GetComponentsInChildren<VRM.VRMSpringBone>())
 				{
 					springBone.m_stiffnessForce *= stiffness;
@@ -416,10 +417,10 @@ namespace ValheimVRM
 		{
 			try
 			{
-				var data = new GlbFileParser(path).Parse();
-				var vrm = new VRMData(data);
-				var context = new VRMImporterContext(vrm);
-				var loaded = default(RuntimeGltfInstance);
+                GltfData data = new GlbFileParser(path).Parse();
+				VRMData vrm = new VRMData(data);
+                VRMImporterContext context = new VRMImporterContext(vrm);
+                RuntimeGltfInstance loaded = default(RuntimeGltfInstance);
 				loaded = context.Load();
 				loaded.ShowMeshes();
 				loaded.Root.transform.localScale *= scale;

@@ -26,7 +26,7 @@ namespace ValheimVRM
 
         public static bool AddSettingsFromFile(string playerName)
         {
-            var path = PlayerSettingsPath(playerName);
+            string path = PlayerSettingsPath(playerName);
             if (File.Exists(path))
             {
                 playerSettings[playerName] = File.ReadAllLines(path);
@@ -48,14 +48,14 @@ namespace ValheimVRM
 
             try
             {
-                var lines = playerSettings[playername];
-                foreach (var line in lines)
+                string[] lines = playerSettings[playername];
+                foreach (string line in lines)
                 {
                     try
                     {
                         if (line.Length > 1 && line.Substring(0, 2) == "//") continue;
 
-                        var args = line.Split('=');
+                        string[] args = line.Split('=');
                         if (args.Length != 2) continue;
 
                         if (args[0] == key)
@@ -78,8 +78,8 @@ namespace ValheimVRM
 
         public static int ReadInt(string playername, string key, int defaultValue = 0, bool debugLog = true)
         {
-            var str = ReadSettings(playername, key);
-            var res = defaultValue;
+            string str = ReadSettings(playername, key);
+            int res = defaultValue;
             if (int.TryParse(str, NumberStyles.Integer, CultureInfo.InvariantCulture, out res))
             {
                 if (debugLog) Debug.Log("[ValheimVRM] " + key + ": " + res);
@@ -90,8 +90,8 @@ namespace ValheimVRM
 
         public static float ReadFloat(string playername, string key, float defaultValue = 0.0f, bool debugLog = true)
         {
-            var str = ReadSettings(playername, key);
-            var res = defaultValue;
+            string str = ReadSettings(playername, key);
+            float res = defaultValue;
             if (float.TryParse(str, NumberStyles.Float, CultureInfo.InvariantCulture, out res))
             {
                 if (debugLog) Debug.Log("[ValheimVRM] " + key + ": " + res);
@@ -102,8 +102,8 @@ namespace ValheimVRM
 
         public static bool ReadBool(string playername, string key, bool defaultValue = false, bool debugLog = true)
         {
-            var str = ReadSettings(playername, key);
-            var res = defaultValue;
+            string str = ReadSettings(playername, key);
+            bool res = defaultValue;
             if (bool.TryParse(str, out res))
             {
                 if (debugLog) Debug.Log("[ValheimVRM] " + key + ": " + res);
@@ -114,13 +114,13 @@ namespace ValheimVRM
 
         public static Vector3 ReadVector3(string playername, string key, Vector3 defaultValue = default, bool debugLog = true)
         {
-            var str = ReadSettings(playername, key);
+            string str = ReadSettings(playername, key);
             if (str == null) return defaultValue;
-            var match = new Regex("\\((?<x>[^,]*?),(?<y>[^,]*?),(?<z>[^,]*?)\\)").Match(str);
+            Match match = new Regex("\\((?<x>[^,]*?),(?<y>[^,]*?),(?<z>[^,]*?)\\)").Match(str);
             if (match.Success == false) return defaultValue;
             try
             {
-                var res = new Vector3()
+                Vector3 res = new Vector3()
                 {
                     x = float.Parse(match.Groups["x"].Value),
                     y = float.Parse(match.Groups["y"].Value),
