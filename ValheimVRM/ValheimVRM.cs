@@ -230,8 +230,8 @@ namespace ValheimVRM
 				ref ZNetView m_nview = ref AccessTools.FieldRefAccess<Player, ZNetView>("m_nview").Invoke(__instance);
 				if (!File.Exists(path))
 				{
-					Debug.LogError("[ValheimVRM] VRMファイルが見つかりません.");
-					Debug.LogError("[ValheimVRM] 読み込み予定だったVRMファイルパス: " + path);
+					Debug.LogErrorFormat("[ValheimVRM] VRM model for player {0} not found.", playerName);
+					Debug.LogErrorFormat("[ValheimVRM] VRM file path: {0}", path);
 				}
 				else
 				{
@@ -239,7 +239,8 @@ namespace ValheimVRM
 					{
 						if (!Settings.AddSettingsFromFile(playerName))
 						{
-							Debug.LogWarning("[ValheimVRM] 設定ファイルが見つかりません.以下の設定ファイルが存在するか確認してください: " + Settings.PlayerSettingsPath(playerName));
+							Debug.LogWarningFormat("[ValheimVRM] Settings file for {0} not found. Please check that the following file exists {1}",
+								playerName, Settings.PlayerSettingsPath(playerName));
 						}
 					}
 
@@ -425,8 +426,8 @@ namespace ValheimVRM
 				loaded.ShowMeshes();
 				loaded.Root.transform.localScale *= scale;
 
-				Debug.Log("[ValheimVRM] VRM読み込み成功");
-				Debug.Log("[ValheimVRM] VRMファイルパス: " + path);
+				Debug.Log("[ValheimVRM] Module successfully loaded");
+				Debug.LogFormat("[ValheimVRM] VRM file path: {0}", path);
 
 				return loaded.Root;
 			}

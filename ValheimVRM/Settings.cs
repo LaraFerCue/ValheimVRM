@@ -70,7 +70,7 @@ namespace ValheimVRM
 
             if (retval == null)
             {
-                Debug.LogWarning("[ValheimVRM] 設定項目が見つかりません: " + key);
+                Debug.LogWarningFormat("[ValheimVRM] Item {0} not found", key);
             }
 
             return retval;
@@ -82,7 +82,7 @@ namespace ValheimVRM
             int res = defaultValue;
             if (int.TryParse(str, NumberStyles.Integer, CultureInfo.InvariantCulture, out res))
             {
-                if (debugLog) Debug.Log("[ValheimVRM] " + key + ": " + res);
+                if (debugLog) Debug.LogFormat("[ValheimVRM] {0}: {1}", key, res);
                 return res;
             } 
             return defaultValue;
@@ -94,7 +94,7 @@ namespace ValheimVRM
             float res = defaultValue;
             if (float.TryParse(str, NumberStyles.Float, CultureInfo.InvariantCulture, out res))
             {
-                if (debugLog) Debug.Log("[ValheimVRM] " + key + ": " + res);
+                if (debugLog) Debug.LogFormat("[ValheimVRM] {0}: {1}", key, res);
                 return res;
             }
             return defaultValue;
@@ -106,7 +106,7 @@ namespace ValheimVRM
             bool res = defaultValue;
             if (bool.TryParse(str, out res))
             {
-                if (debugLog) Debug.Log("[ValheimVRM] " + key + ": " + res);
+                if (debugLog) Debug.LogFormat("[ValheimVRM] {0}: {1}", key, res);
                 return res;
             }
             return defaultValue;
@@ -126,7 +126,7 @@ namespace ValheimVRM
                     y = float.Parse(match.Groups["y"].Value),
                     z = float.Parse(match.Groups["z"].Value)
                 };
-                if (debugLog) Debug.Log("[ValheimVRM] " + key + ": " + res);
+                if (debugLog) Debug.LogFormat("[ValheimVRM] {0}: {1}", key, res);
                 return res;
             }
             catch (FormatException ex)
