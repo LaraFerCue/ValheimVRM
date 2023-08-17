@@ -240,7 +240,7 @@ namespace ValheimVRM
             else
             {
                 PlayerSettings settings = Settings.GetSettings(playerName);
-                if (settings == null && !Settings.AddSettingsFromFile(playerName))
+                if (settings == null && (settings = Settings.AddSettingsFromFile(playerName)) == null)
                 {
                     Debug.LogWarningFormat("[ValheimVRM] Settings file for {0} not found. Please check that the following file exists {1}",
                         playerName, Settings.PlayerSettingsPath(playerName));
