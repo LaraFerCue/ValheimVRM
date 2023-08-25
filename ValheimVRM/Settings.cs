@@ -118,10 +118,12 @@ namespace ValheimVRM
                     }
                 }
                 Debug.LogFormat("[ValheimVRM] {0}", ps.ToString());
-                playerSettingsList.Add(ps);
-                return ps;
             }
-            return null;
+            else
+                Debug.LogWarningFormat("[ValheimVRM] File {0} does not exist, using default settings", path);
+
+            playerSettingsList.Add(ps);
+            return ps;
         }
     }
 }
