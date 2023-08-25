@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace ValheimVRM
 {
-    class PlayerSettings
+    public class PlayerSettings
     {
         private string name;
         public float modelScale, modelBrightness, modelOffsetY, springBoneStiffness, springBoneGravityPower;
